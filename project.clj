@@ -1,5 +1,5 @@
 (defproject stch-library/routing "0.1.0"
-  :description "FIXME: write description"
+  :description "Ring-compatible HTTP routing library."
   :url "https://github.com/stch-library/routing"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
