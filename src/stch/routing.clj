@@ -1,49 +1,35 @@
 (ns stch.routing
   "DSL for routing Ring requests."
-  (:use [stch.response]
-        [stch.schema]
+  (:use [stch schema response]
+        [stch.routing.parse]
         [ring.util.response :only [file-response]])
   (:require [clojure.string :as string]
-            [stch.zipper :as z])
-  (:import java.text.SimpleDateFormat
-           java.util.TimeZone))
+            [stch.zipper :as z]))
 
-(def Request {:uri String
-              :request-method Keyword
-              Keyword Any})
+(def RequestMethods
+  "Request methods type annotation."
+  (Enumerate :get :head :options :put :post :delete))
+
+(def Request
+  "Request type annotation."
+  {:uri String
+   :request-method RequestMethods
+   :server-name String
+   :scheme (Enumerate :http :https)
+   :headers {String String}
+   Keyword Any})
 
 (def ^:dynamic *router*)
 
-(defn' parse-int :- Int [n :- String]
-  (Integer/parseInt n))
-
-(defn' parse-date :- Date
-  "Parse a date with format yyyy-MM-dd. Returns
-  a Date instant with timezone set to GMT."
-  [date :- String]
-  (let [tz (TimeZone/getTimeZone "GMT")
-        sdf (SimpleDateFormat. "yyyy-MM-dd")]
-    (.setTimeZone sdf tz)
-    (.parse sdf date)))
-
-(defn' parse-uuid :- UUID [uuid :- String]
-  (java.util.UUID/fromString uuid))
-
-(def parsers
-  {:int [#"\d+" parse-int]
-   :slug [#"[a-zA-Z0-9_-]+" identity]
-   :date [#"[0-9]{4}-[0-9]{2}-[0-9]{2}" parse-date]
-   :uuid [#"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"
-           parse-uuid]})
-
 (defprotocol IDispatch
   "Dispatch a request."
-  (-pred [this p f]
-    "If (pred path-segment) returns truthy then,
-    call f passing the result of the above.")
+  (-scheme [this s f]
+    "If the scheme key matches s, call f.")
   (-domain [this d f]
-    "If the server-name key matches the domain,
-    call f.")
+    "If the server-name key matches d, call f.")
+  (-pred [this p f]
+    "If (p path-segment) returns truthy then,
+    call f passing the result of the above.")
   (-index [this f]
     "If there are no path segments, call f.")
   (-path [this segment f]
@@ -78,43 +64,112 @@
     "Inspect the current state of the zipper. Useful
     for debugging."))
 
-(defmacro pred [p bindings & body]
-  `(-pred *router* ~p (fn ~bindings ~@body)))
+(defmacro scheme
+  "If the scheme key matches s, evaluate body.
 
-(defmacro domain [d & body]
+  Use with route or route'."
+  [s & body]
+  `(-scheme *router* ~s (fn [] ~@body)))
+
+(defmacro domain
+  "If the server-name key matches d, evaluate body.
+
+  Use with route or route'."
+  [d & body]
   `(-domain *router* ~d (fn [] ~@body)))
 
-(defmacro index [& body]
+(defmacro pred
+  "If (p path-segment) returns truthy then,
+  evaluate body with bindings set to the value
+  returned by (p path-segment).
+
+  Use with route or route'."
+  [p bindings & body]
+  `(-pred *router* ~p (fn ~bindings ~@body)))
+
+(defmacro index
+  "If there are no path segments, evaluate body.
+
+  Use with route or route'."
+  [& body]
   `(-index *router* (fn [] ~@body)))
 
-(defmacro path [segment & body]
+(defmacro path
+  "If the next path segment matches segment,
+  evaluate body.
+
+  Use with route or route'."
+  [segment & body]
   `(-path *router* ~segment (fn [] ~@body)))
 
-(defmacro method [method & body]
+(defmacro method
+  "If the request-method key matches meth,
+   evaluate body.
+
+  Use with route or route'."
+  [method & body]
   `(-method *router* ~method (fn [] ~@body)))
 
-(defmacro param [parser bindings & body]
+(defmacro param
+  "If the next path segment can be matched according
+  to regex pattern, use the corresponding parser and
+  evaluate body with bindings set to parsed value.
+
+  Use with route or route'."
+  [parser bindings & body]
   `(-param *router* ~parser (fn ~bindings ~@body)))
 
-(defmacro static [segments opts]
+(defmacro static
+  "If the next path segment matches a value in the
+  segments set and the request method is get,
+  return a file response corresponding to the
+  requested file.
+
+  Use with route or route'."
+  [segments opts]
   `(-static *router* ~segments ~opts))
 
-(defmacro not-traversed [& body]
+(defmacro not-traversed
+  "If the current path level has not been traversed
+  previously, evaluate body.
+
+  Use with route or route'."
+  [& body]
   `(-not-traversed *router* (fn [] ~@body)))
 
-(defmacro truncate [& body]
+(defmacro truncate
+  "Truncate any remaining path segments and evaluate body.
+  If a response is not created inside truncate
+  (for example, by means of a call to method),
+  revert the zipper to it's previous state.
+
+  Use with route or route'."
+  [& body]
   `(-truncate *router* (fn [] ~@body)))
 
-(defmacro terminate [resp]
+(defmacro terminate
+  "Terminate and respond with resp immediately.
+
+  Use with route or route'."
+  [resp]
   `(-terminate *router* ~resp))
 
 (defmacro guard
+  "If check is falsey return immediately with a
+  forbidden error, and optional message.
+
+  Use with route or route'."
   ([check]
    `(-guard *router* ~check))
   ([check msg]
    `(-guard *router* ~check ~msg)))
 
-(defmacro zipper []
+(defmacro zipper
+  "Inspect the current state of the zipper. Useful
+  for debugging.
+
+  Use with route or route'."
+  []
   `(-zipper *router*))
 
 (defprotocol IRequest
@@ -133,25 +188,53 @@
   (-body [this]
     "Returns the request body."))
 
-(defmacro request []
+(defmacro request
+  "Returns the request map.
+
+  Use with route or route'."
+  []
   `(-request *router*))
 
-(defmacro url []
+(defmacro url
+  "Returns the request url.
+
+  Use with route or route'."
+  []
   `(-url *router*))
 
-(defmacro params []
+(defmacro params
+  "Returns the params map (if present).
+
+  Use with route or route'."
+  []
   `(-params *router*))
 
-(defmacro lookup-param [param]
+(defmacro lookup-param
+  "Returns the specified param.
+
+  Use with route or route'."
+  [param]
   `(-lookup-param *router* ~param))
 
-(defmacro headers []
+(defmacro headers
+  "Returns a map of the request headers.
+
+  Use with route or route'."
+  []
   `(-headers *router*))
 
-(defmacro lookup-header [header]
+(defmacro lookup-header
+  "Returns the specified header.
+
+  Use with route or route'."
+  [header]
   `(-lookup-header *router* ~header))
 
-(defmacro body []
+(defmacro body
+  "Returns the request body (if present).
+
+  Use with route or route'."
+  []
   `(-body *router*))
 
 (defrecord' Router
@@ -161,6 +244,12 @@
    resp :- Atom]
 
   IDispatch
+  (-scheme [this s f]
+    (when (= (name (:scheme req)) (name s))
+      (f)))
+  (-domain [this d f]
+    (when (= (:server-name req) d)
+      (f)))
   (-pred [this p f]
     (when (and (z/not-end? @req-path)
                (empty-resp? @resp))
@@ -175,9 +264,6 @@
               (do
                 (swap! req-path z/prev)
                 v)))))))
-  (-domain [this d f]
-    (when (= (:server-name req) d)
-      (f)))
   (-index [this f]
     (when (and (z/empty? @req-path)
                (empty-resp? @resp))
@@ -267,6 +353,7 @@
        (remove clojure.string/blank?)))
 
 (defn' init-router :- Router
+  "Initialize the router."
   [req :- Request]
   (Router. req
            (-> req :uri split-path z/->zip atom)
@@ -275,7 +362,7 @@
 
 (defmacro route
   [& body]
-  "Entrypoint for routing. Always returns a response."
+  "Entrypoint for routing. Calls respond."
   `(fn [req#]
      (binding [*router* (init-router req#)]
        ~@body
@@ -288,21 +375,21 @@
 
 (defmacro route'
   [& body]
-  "Alternate entrypoint for routing.
-  Use with routes."
+  "Alternate entrypoint for routing. Does not call
+  respond. Use with routes."
   `(fn [req#]
      (binding [*router* (init-router req#)]
        ~@body
        (-> *router* :resp deref))))
 
 (defmacro defroute'
-  "Define a route using route'."
+  "Define a route. Uses route'."
   [name & body]
   `(def ~name (route' ~@body)))
 
-(defn' routes :- (Fn Any [Map])
-  "Compose multiple routes."
-  [& handlers :- [(Fn Any [Map])]]
+(defn' routes :- (Fn Any [Request])
+  "Compose multiple routes. Calls respond."
+  [& handlers :- [(Fn Any [Request])]]
   (fn [req]
     (-> (some (fn [handler]
                 (let [resp (handler req)]

@@ -27,4 +27,62 @@ http://stch-library.github.io/routing
 
 ```Clojure
 (use 'stch.routing)
+
+(def faqs
+  {"how-to-post-comment" "How to post a comment"
+   "how-to-remove-comment" "How to remove a comment"})
+
+(def posts [{:id 1 :content "Post #1"}
+            {:id 2 :content "Post #2"}])
+
+(defn lookup-post [id]
+  (some #(when (= (:id %) id) %) posts))
+
+(defroute handler
+  (scheme :https
+    (domain "api.example.org"
+      (index (forbidden))
+      (path "blog" posts)))
+  (index "hello world")
+  (path "blog"
+    (method :GET "Here's my blog.")
+    (param :int [id]
+      (let [post (lookup-post id)]
+        (path "comments"
+          (truncate
+            (method :GET
+              (str "Get comments for post with id: " id)))
+          (method :POST (str "Saved comment for post: " id)))
+        (str (:content post))))
+    (param :date [date]
+      (str "Get blog post by date: " (pr-str date)))
+    (param :uuid [uuid]
+      (str "Get blog post by uuid: " uuid))
+    (param :slug [slug]
+      (str "Get blog post by slug: " slug)))
+  (path "faq"
+    (pred faqs [faq]
+      (str "FAQ: " faq)))
+  (path "admin"
+    (path "user"
+      (guard false "You shall not pass!"))
+    "Welcome to the admin portal!"))
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

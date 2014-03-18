@@ -7,7 +7,9 @@
    [clojure.lang APersistentMap Sequential IDeref]))
 
 (defrecord' Response
-  [status :- Int, headers :- Map, body])
+  [status :- Int
+   headers :- Map
+   body :- (U String File InputStream)])
 
 (defrecord EmptyResponse [])
 
@@ -79,41 +81,56 @@
 (def ^:private ct-text-html
   {"Content-Type" "text/html"})
 
+(def ^:private ct-text-plain
+  {"Content-Type" "text/plain"})
+
+(defn' text-response :- Response
+  [code :- Int, text :- String]
+  (Response. code ct-text-plain text))
+
+(defn' trivial-response :- Response
+  [code :- Int]
+  (Response. code ct-text-plain (code->text code)))
+
 (defn' ok :- Response
-  ([body]
+  ([body :- String]
    (Response. 200 ct-text-html body))
-  ([content-type :- String, body]
+  ([content-type :- String, body :- String]
    (Response. 200 {"Content-Type" content-type} body)))
-
-(defn' ->json :- Response [resp]
-  (ok "application/json" (json/encode resp)))
-
-(defn' ->edn :- Response [resp]
-  (ok "application/edn" (pr-str resp)))
 
 (defn' redirect :- Response
   [url :- String]
   (Response. 302 {"Location" url} ""))
 
-(defn' text-response :- Response
-  [code :- Int, text :- String]
-  (Response. code ct-text-html text))
+(defn' bad-request :- Response
+  ([]
+   (trivial-response 400))
+  ([text :- String]
+   (text-response 400 text)))
 
-(defn' trivial-response :- Response
-  [code :- Int]
-  (Response. code ct-text-html (code->text code)))
+(defn' forbidden :- Response
+  ([]
+   (trivial-response 403))
+  ([text :- String]
+   (text-response 403 text)))
 
-(defn' bad-request :- Response []
-  (trivial-response 400))
+(defn' not-found :- Response
+  ([]
+   (trivial-response 404))
+  ([text :- String]
+   (text-response 404 text)))
 
-(defn' forbidden :- Response []
-  (trivial-response 403))
+(defn' method-not-allowed :- Response
+  ([]
+   (trivial-response 405))
+  ([text :- String]
+   (text-response 405 text)))
 
-(defn' not-found :- Response []
-  (trivial-response 404))
+(defn' ->json :- Response [data]
+  (ok "application/json" (json/encode data)))
 
-(defn' method-not-allowed :- Response []
-  (trivial-response 405))
+(defn' ->edn :- Response [data]
+  (ok "application/edn" (pr-str data)))
 
 (def ^:dynamic coll-formatter ->json)
 

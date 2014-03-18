@@ -1,19 +1,27 @@
 (ns stch.routing-spec
   (:use [speclj.core]
         [stch routing response]
+        [stch.routing.parse]
         [stch.schema :only [with-fn-validation]]
         [stch.util :only [with-private-fns]])
-  (:require [stch.zipper :as z])
-  (import java.util.Calendar))
+  (:require [stch.zipper :as z]))
 
-(defn req [uri request-method]
-  {:uri uri
-   :request-method request-method})
+(defn req
+  ([uri request-method]
+   (req uri request-method nil))
+  ([uri request-method kvs]
+   (merge {:uri uri
+           :request-method request-method
+           :server-name "example.org"
+           :scheme :http
+           :headers {}}
+          kvs)))
 
 (defn api-req [uri request-method]
-  {:uri uri
-   :request-method request-method
-   :server-name "api.example.org"})
+  (req uri
+       request-method
+       {:server-name "api.example.org"
+        :scheme :https}))
 
 (def faqs
   {"how-to-post-comment" "How to post a comment"
@@ -26,9 +34,10 @@
   (some #(when (= (:id %) id) %) posts))
 
 (defroute responder
-  (domain "api.example.org"
-    (index (forbidden))
-    (path "blog" posts))
+  (scheme :https
+    (domain "api.example.org"
+      (index (forbidden))
+      (path "blog" posts)))
   (index "hello world")
   (path "blog"
     (method :GET "Here's my blog.")
@@ -191,14 +200,16 @@
   (context "routes"
     (it "frontend"
       (should= (ok "Here are some useful links.")
-               (mysite {:uri "/links"
-                        :server-name "mysite.org"
-                        :request-method :get})))
+               (mysite
+                 (req "/links"
+                      :get
+                      {:server-name "mysite.org"}))))
     (it "backend"
       (should= (->json links)
-               (mysite {:uri "/links"
-                        :server-name "admin.mysite.org"
-                        :request-method :get})))))
+               (mysite
+                 (req "/links"
+                      :get
+                      {:server-name "admin.mysite.org"}))))))
 
 (defn test-pf [parsers p-type segment]
   (let [[parser formatter]
@@ -234,29 +245,34 @@
              (responder (req "/url" :get))))
   (it "params"
     (should= (->json {:type "json"})
-             (responder {:uri "/params"
-                         :request-method :get
-                         :params {:type "json"}})))
+             (responder
+               (req "/params"
+                    :get
+                    {:params {:type "json"}}))))
   (it "lookup-param"
     (should= (ok "json")
-             (responder {:uri "/lookup-param"
-                         :request-method :get
-                         :params {:type "json"}})))
+             (responder
+               (req "/lookup-param"
+                    :get
+                    {:params {:type "json"}}))))
   (it "headers"
     (should= (->json {"Accept-Language" "en-US"})
-             (responder {:uri "/headers"
-                         :request-method :get
-                         :headers {"Accept-Language" "en-US"}})))
+             (responder
+               (req "/headers"
+                    :get
+                    {:headers {"Accept-Language" "en-US"}}))))
   (it "lookup-header"
     (should= (ok "en-US")
-             (responder {:uri "/lookup-header"
-                         :request-method :get
-                         :headers {"Accept-Language" "en-US"}})))
+             (responder
+               (req "/lookup-header"
+                    :get
+                    {:headers {"Accept-Language" "en-US"}}))))
   (it "body"
     (should= (ok "name=Billy")
-             (responder {:uri "/body"
-                         :request-method :get
-                         :body "name=Billy"}))))
+             (responder
+               (req "/body"
+                    :get
+                    {:body "name=Billy"})))))
 
 (describe "Routing internals"
   (around [it]
