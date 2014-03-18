@@ -133,7 +133,7 @@ http://stch-library.github.io/routing
 ; #stch.response.Response{:status 200, :headers {"Content-Type" "text/html"}, :body "You got sucked in."}
 
 (handler (req "/nil-resp" :get))
-; #stch.response.Response{:status 204, :headers {"Content-Type" "text/plain"}, :body "No Content"}
+; #stch.response.Response{:status 204, :headers {"Content-Type" "text/plain"}, :body ""}
 
 (handler (req "/blogz" :get))
 ; #stch.response.Response{:status 404, :headers {"Content-Type" "text/plain"}, :body "Not Found"}

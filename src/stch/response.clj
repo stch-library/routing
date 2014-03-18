@@ -148,7 +148,7 @@
   Response
   (respond [resp] resp)
   nil
-  (respond [_] (trivial-response 204))
+  (respond [_] (text-response 204 ""))
   String
   (respond [resp] (ok resp))
   APersistentMap

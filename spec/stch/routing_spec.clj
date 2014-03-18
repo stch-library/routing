@@ -185,7 +185,7 @@
     (should= (ok "Your zipcode is: 90210")
              (responder (req "/zipcode/90210" :get))))
   (it "nil response"
-    (should= (trivial-response 204)
+    (should= (text-response 204 "")
              (responder (req "/nil-resp" :get))))
   (context "routes"
     (it "frontend"
