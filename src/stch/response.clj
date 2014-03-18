@@ -132,11 +132,11 @@
 (defn' ->edn :- Response [data]
   (ok "application/edn" (pr-str data)))
 
-(def ^:dynamic coll-formatter ->json)
+(def ^:dynamic *coll-formatter* ->json)
 
 (defmacro with-edn-formatting
   [& body]
-  `(binding [coll-formatter ->edn]
+  `(binding [*coll-formatter* ->edn]
      ~@body))
 
 (defprotocol IResponse
@@ -152,9 +152,9 @@
   String
   (respond [resp] (ok resp))
   APersistentMap
-  (respond [resp] (coll-formatter resp))
+  (respond [resp] (*coll-formatter* resp))
   Sequential
-  (respond [resp] (coll-formatter resp))
+  (respond [resp] (*coll-formatter* resp))
   IDeref
   (respond [ref] (respond (deref ref)))
   File

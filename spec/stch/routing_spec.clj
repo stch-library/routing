@@ -7,21 +7,19 @@
   (:require [stch.zipper :as z]))
 
 (defn req
-  ([uri request-method]
-   (req uri request-method nil))
-  ([uri request-method kvs]
-   (merge {:uri uri
-           :request-method request-method
-           :server-name "example.org"
-           :scheme :http
-           :headers {}}
-          kvs)))
+  [uri method & {:keys [domain scheme]
+                 :or {domain "example.org"
+                      scheme :http}}]
+  {:uri uri
+   :request-method method
+   :server-name domain
+   :scheme scheme
+   :headers {}})
 
-(defn api-req [uri request-method]
-  (req uri
-       request-method
-       {:server-name "api.example.org"
-        :scheme :https}))
+(defn api-req [uri method]
+  (req uri method
+       :domain "api.example.org"
+       :scheme :https))
 
 (def faqs
   {"how-to-post-comment" "How to post a comment"
@@ -74,22 +72,14 @@
   (path "zipcode"
     (param [#"[0-9]{5}" identity] [zip]
       (str "Your zipcode is: " zip)))
-  (path "req"
-    (request))
-  (path "url"
-    (url))
-  (path "params"
-    (params))
-  (path "lookup-param"
-    (lookup-param :type))
-  (path "headers"
-    (headers))
-  (path "lookup-header"
-    (lookup-header "Accept-Language"))
-  (path "body"
-    (body))
-  (path "nil-resp"
-    nil))
+  (path "req" (request))
+  (path "url" (url))
+  (path "params" (params))
+  (path "lookup-param" (lookup-param :type))
+  (path "headers" (headers))
+  (path "lookup-header" (lookup-header "Accept-Language"))
+  (path "body" (body))
+  (path "nil-resp" nil))
 
 (defroute' frontend
   (domain "mysite.org"
@@ -201,15 +191,13 @@
     (it "frontend"
       (should= (ok "Here are some useful links.")
                (mysite
-                 (req "/links"
-                      :get
-                      {:server-name "mysite.org"}))))
+                 (req "/links" :get
+                      :domain "mysite.org"))))
     (it "backend"
       (should= (->json links)
                (mysite
-                 (req "/links"
-                      :get
-                      {:server-name "admin.mysite.org"}))))))
+                 (req "/links" :get
+                      :domain "admin.mysite.org"))))))
 
 (defn test-pf [parsers p-type segment]
   (let [[parser formatter]
@@ -246,33 +234,28 @@
   (it "params"
     (should= (->json {:type "json"})
              (responder
-               (req "/params"
-                    :get
-                    {:params {:type "json"}}))))
+               (-> (req "/params" :get)
+                   (assoc :params {:type "json"})))))
   (it "lookup-param"
     (should= (ok "json")
              (responder
-               (req "/lookup-param"
-                    :get
-                    {:params {:type "json"}}))))
+               (-> (req "/lookup-param" :get)
+                   (assoc :params {:type "json"})))))
   (it "headers"
     (should= (->json {"Accept-Language" "en-US"})
              (responder
-               (req "/headers"
-                    :get
-                    {:headers {"Accept-Language" "en-US"}}))))
+               (-> (req "/headers" :get)
+                   (assoc :headers {"Accept-Language" "en-US"})))))
   (it "lookup-header"
     (should= (ok "en-US")
              (responder
-               (req "/lookup-header"
-                    :get
-                    {:headers {"Accept-Language" "en-US"}}))))
+               (-> (req "/lookup-header" :get)
+                   (assoc :headers {"Accept-Language" "en-US"})))))
   (it "body"
     (should= (ok "name=Billy")
              (responder
-               (req "/body"
-                    :get
-                    {:body "name=Billy"})))))
+               (-> (req "/body" :get)
+                   (assoc :body "name=Billy"))))))
 
 (describe "Routing internals"
   (around [it]
