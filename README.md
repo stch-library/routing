@@ -275,7 +275,7 @@ Some convenience fns exist for getting at the underlining request.
 ; #stch.response.Response{:status 200, :headers {"Content-Type" "text/html"}, :body "en-US"}
 ```
 
-The following types are handled specially when passed to the respond protocol method (see stch.response):
+The following types are handled specially when passed to the respond protocol method (see [stch.response](https://github.com/stch-library/routing/blob/master/src/stch/response.clj#L145)):
 
 1. EmptyResponse
 2. Response
