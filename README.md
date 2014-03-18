@@ -11,7 +11,7 @@ A clojure hash-map or sequential collection type (lists, vectors, etc.) returned
 
 To return a full response (status, headers, body), it is suggested you use one of the built-in response functions (e.g., ok, not-found).  If you need more control, you can create a Response record.  You cannot return a hash-map with keys: status, headers, and body, since hash-maps are automatically JSON encoded.
 
-[Chesire](https://github.com/dakrone/cheshire) is used for json encoding.
+[Chesire](https://github.com/dakrone/cheshire) is used for JSON encoding.
 
 ## Installation
 
