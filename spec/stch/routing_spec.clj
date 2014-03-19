@@ -25,13 +25,15 @@
   {"how-to-post-comment" "How to post a comment"
    "how-to-remove-comment" "How to remove a comment"})
 
+(def old-or-new #{"old-path" "new-path"})
+
 (def posts [{:id 1 :content "Post #1"}
             {:id 2 :content "Post #2"}])
 
 (defn lookup-post [id]
   (some #(when (= (:id %) id) %) posts))
 
-(defroute responder
+(defroute handler
   (scheme :https
     (domain "api.example.org"
       (index (forbidden))
@@ -65,6 +67,8 @@
   (path "faq"
     (pred faqs [faq]
       (str "FAQ: " faq)))
+  (pred old-or-new [choice]
+    (str "You chose: " choice))
   (path "about"
     (method :ANY "This is my blog."))
   (path "black-hole"
@@ -105,88 +109,92 @@
     (with-fn-validation (it)))
   (it "index"
     (should= (ok "hello world")
-             (responder (req "/" :get))))
+             (handler (req "/" :get))))
   (context "path"
     (it "single segment"
       (should= (ok "Here's my blog.")
-               (responder (req "/blog" :get))))
+               (handler (req "/blog" :get))))
     (context "param"
       (it "int"
         (should= (ok "Post #1")
-                 (responder (req "/blog/1" :get))))
+                 (handler (req "/blog/1" :get))))
       (context "nested path"
         (context "method: GET"
           (it "all segments consumed"
             (should= (ok "Get comments for post with id: 1")
-                     (responder (req "/blog/1/comments" :get))))
+                     (handler (req "/blog/1/comments" :get))))
           (it "truncate unconsumed segments"
             (should= (ok "Get comments for post with id: 1")
-                     (responder (req "/blog/1/comments/35" :get)))))
+                     (handler (req "/blog/1/comments/35" :get)))))
         (context "method: POST"
           (it "all segments consumed"
             (should= (ok "Saved comment for post: 1")
-                     (responder (req "/blog/1/comments" :post))))
+                     (handler (req "/blog/1/comments" :post))))
           (it "unconsumed segments: not found"
             (should= (not-found)
-                     (responder (req "/blog/1/comments/35" :post))))))
+                     (handler (req "/blog/1/comments/35" :post))))))
       (it "date"
         (should= (ok "Get blog post by date: #inst \"2013-01-01T00:00:00.000-00:00\"")
-                 (responder (req "/blog/2013-01-01" :get))))
+                 (handler (req "/blog/2013-01-01" :get))))
       (it "uuid"
         (should= (ok (str "Get blog post by uuid: " uuid))
-                 (responder
+                 (handler
                    (req (str "/blog/" uuid) :get))))
       (it "slug"
         (should= (ok "Get blog post by slug: clojure-101")
-                 (responder (req "/blog/clojure-101" :get))))))
+                 (handler (req "/blog/clojure-101" :get))))))
   (it "not found"
     (should= (not-found)
-             (responder (req "/foo" :get))))
+             (handler (req "/foo" :get))))
   (it "not-traversed"
     (should= (not-found)
-             (responder (req "/admin/posts" :get))))
-  (it "pred"
-    (should= (ok "FAQ: How to post a comment")
-             (responder (req "/faq/how-to-post-comment" :get))))
+             (handler (req "/admin/posts" :get))))
+  (context "pred"
+    (it "map"
+      (should= (ok "FAQ: How to post a comment")
+               (handler (req "/faq/how-to-post-comment" :get))))
+    (it "set"
+      (should= (ok "You chose: old-path")
+               (handler (req "/old-path" :get)))))
   (context "guard"
     (it "default message"
       (should= (forbidden)
-               (responder (req "/admin/super-secret" :get))))
+               (handler (req "/admin/super-secret" :get))))
     (it "custom message"
       (should= (text-response 403 "You shall not pass!")
-               (responder (req "/admin/user" :get)))))
+               (handler (req "/admin/user" :get)))))
   (context "domain"
     (it "index"
       (should= (forbidden)
-               (responder (api-req "/" :get))))
+               (handler (api-req "/" :get))))
     (it "json"
       (should= (->json posts)
-               (responder (api-req "/blog" :get)))))
+               (handler (api-req "/blog" :get)))))
   (context "method: ANY"
     (it "GET"
       (should= (ok "This is my blog.")
-               (responder (req "/about" :get))))
+               (handler (req "/about" :get))))
     (it "POST"
       (should= (ok "This is my blog.")
-               (responder (req "/about" :post))))
+               (handler (req "/about" :post))))
     (it "PUT"
       (should= (ok "This is my blog.")
-               (responder (req "/about" :put))))
+               (handler (req "/about" :put))))
     (it "DELETE"
       (should= (ok "This is my blog.")
-               (responder (req "/about" :delete))))
+               (handler (req "/about" :delete))))
     (it "HEAD"
       (should= (ok "This is my blog.")
-               (responder (req "/about" :head)))))
+               (handler (req "/about" :head)))))
   (it "terminate"
     (should= (ok "You got sucked in.")
-             (responder (req "/black-hole/billy" :get))))
+             (handler (req "/black-hole/billy" :get))))
   (it "custom parse/formatter"
     (should= (ok "Your zipcode is: 90210")
-             (responder (req "/zipcode/90210" :get))))
+             (handler (req "/zipcode/90210" :get))))
   (it "nil response"
     (should= (text-response 204 "")
-             (responder (req "/nil-resp" :get))))
+             (handler (req "/nil-resp" :get))))
   (context "routes"
     (it "frontend"
       (should= (ok "Here are some useful links.")
@@ -227,33 +235,33 @@
     (with-fn-validation (it)))
   (it "request"
     (should= (->json (req "/req" :get))
-             (responder (req "/req" :get))))
+             (handler (req "/req" :get))))
   (it "url"
     (should= (ok "/url")
-             (responder (req "/url" :get))))
+             (handler (req "/url" :get))))
   (it "params"
     (should= (->json {:type "json"})
-             (responder
+             (handler
                (-> (req "/params" :get)
                    (assoc :params {:type "json"})))))
   (it "lookup-param"
     (should= (ok "json")
-             (responder
+             (handler
                (-> (req "/lookup-param" :get)
                    (assoc :params {:type "json"})))))
   (it "headers"
     (should= (->json {"Accept-Language" "en-US"})
-             (responder
+             (handler
                (-> (req "/headers" :get)
                    (assoc :headers {"Accept-Language" "en-US"})))))
   (it "lookup-header"
     (should= (ok "en-US")
-             (responder
+             (handler
                (-> (req "/lookup-header" :get)
                    (assoc :headers {"Accept-Language" "en-US"})))))
   (it "body"
     (should= (ok "name=Billy")
-             (responder
+             (handler
                (-> (req "/body" :get)
                    (assoc :body "name=Billy"))))))
 
@@ -276,6 +284,49 @@
           (should= '("blog" "1234")
                    (split-path "/blog/1234")))))))
 
+(describe "respond"
+  (it "EmptyResponse"
+    (should= (not-found)
+             (respond (->EmptyResponse))))
+  (it "Response"
+    (should= (->Response 200 {} "OK")
+             (respond (->Response 200 {} "OK"))))
+  (it "nil"
+    (should= (text-response 204 "")
+             (respond nil)))
+  (it "String"
+    (should= (ok "OK")
+             (respond "OK")))
+  (context "APersistentMap"
+    (it "JSON"
+      (should= (->json {:name "Billy" :age 35})
+               (respond {:name "Billy" :age 35})))
+    (it "EDN"
+      (should= (->edn {:name "Billy" :age 35})
+               (with-edn-formatting
+                 (respond {:name "Billy" :age 35})))))
+  (context "Sequential"
+    (it "JSON"
+      (should= (->json [:Billy "Bobby"])
+               (respond [:Billy "Bobby"])))
+    (it "EDN"
+      (should= (->edn [:Billy "Bobby"])
+               (with-edn-formatting
+                 (respond [:Billy "Bobby"])))))
+  (context "IPersistentSet"
+    (it "JSON"
+      (should= (->json #{:Billy "Bobby"})
+               (respond #{:Billy "Bobby"})))
+    (it "EDN"
+      (should= (->edn #{:Billy "Bobby"})
+               (with-edn-formatting
+                 (respond #{:Billy "Bobby"})))))
+  (it "IDeref"
+    (should= (ok "Billy")
+             (respond (atom "Billy"))))
+  (it "Object"
+    (should= (ok "3")
+             (respond 3))))
 
 
 
