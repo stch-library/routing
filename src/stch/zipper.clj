@@ -1,5 +1,5 @@
 (ns stch.zipper
-  "Zipper for sequential data. Keeps a
+  "Zipper for sequential data. Maintains a
   history of the traversed positions."
   (:require [clojure.core :as core])
   (:use
@@ -26,7 +26,7 @@
   [& args :- [Any]]
   (->zip args))
 
-(defn' left :- Zipper
+(defn' prev :- Zipper
   "Move the zipper to the left."
   [z :- Zipper]
   (if (core/empty? (:left z))
@@ -36,7 +36,7 @@
              (dec (:index z))
              (:traversed z))))
 
-(defn' right :- Zipper
+(defn' next :- Zipper
   "Move the zipper to the right."
   [z :- Zipper]
   (if (core/empty? (:right z))
@@ -47,22 +47,26 @@
                index
                (conj (:traversed z) index)))))
 
-(def prev left)
-(def next right)
+(def left "Alias for prev." prev)
+(def right "Alias for next." next)
 
 (defn' start? :- Boolean
   "Are we at the start of the zipper?"
   [z :- Zipper]
   (core/empty? (:left z)))
 
-(def not-start? (comp not start?))
+(def not-start?
+  "Are we not at the start of the zipper?"
+  (comp not start?))
 
 (defn' end? :- Boolean
   "Are we at the end of the zipper?"
   [z :- Zipper]
   (core/empty? (:right z)))
 
-(def not-end? (comp not end?))
+(def not-end?
+  "Are we not at the end of the zipper?"
+  (comp not end?))
 
 (defn' empty? :- Boolean
   "Is the zipper empty?"
@@ -104,8 +108,8 @@
       z
       (recur (right z)))))
 
-(def leftmost start)
-(def rightmost end)
+(def leftmost "Alias for start." start)
+(def rightmost "Alias for end." end)
 
 (defn' lefts :- DoubleList
   "Get the left side of the zipper."
@@ -127,32 +131,35 @@
   [z :- Zipper]
   (peek (:left z)))
 
-(defn' remove :- (Option Zipper)
+(defn' remove :- Zipper
   "Remove the current element from the zipper."
   [z :- Zipper]
-  (when-not (core/empty? (:left z))
+  (if-not (core/empty? (:left z))
     (-> (update-in z [:left] pop)
-        (update-in [:index] dec))))
+        (update-in [:index] dec))
+    z))
 
-(defn' replace :- (Option Zipper)
+(defn' replace :- Zipper
   "Replace the current element in the zipper
   with el."
   [z :- Zipper, el :- Any]
-  (when-not (core/empty? (:left z))
-    (update-in z [:left] #(-> % pop (conj el)))))
+  (if-not (core/empty? (:left z))
+    (update-in z [:left] #(-> % pop (conj el)))
+    z))
 
 (defn' truncate :- Zipper
   "Truncate the right side of the zipper."
   [z :- Zipper]
   (assoc z :right (double-list)))
 
-(defn' update :- (Option Zipper)
+(defn' update :- Zipper
   "Update the current element in the zipper,
   calling f on it."
   [z :- Zipper, f :- (Fn Any [Any])]
-  (when-not (core/empty? (:left z))
+  (if-not (core/empty? (:left z))
     (update-in z [:left] #(let [v (f (peek %))]
-                            (-> % pop (conj v))))))
+                            (-> % pop (conj v))))
+    z))
 
 (defn' insert-right :- Zipper
   "Insert el to the right of the current
