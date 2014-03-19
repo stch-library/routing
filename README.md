@@ -27,6 +27,10 @@ http://stch-library.github.io/routing
 
 Note: This library uses [stch.schema](https://github.com/stch-library/schema). Please refer to that project page for more information regarding type annotations and their meaning.
 
+## Example site
+
+Check out a working example in examples/playground.
+
 ## How to use
 
 ```clojure
@@ -92,14 +96,14 @@ Note: This library uses [stch.schema](https://github.com/stch-library/schema). P
    :scheme scheme
    :headers {}})
 
-(handler (req "/images/some-pic.png" :get))
-; Will return png file if resources/public/images/some-pic.png exists
+(handler (req "/images/clojure-icon.gif" :get))
+; Will return gif file if resources/public/images/clojure-icon.gif exists
 
-(handler (req "/css/styles.css" :get))
-; Will return css file if resources/public/css/styles.css exists
+(handler (req "/css/style.css" :get))
+; Will return css file if resources/public/css/style.css exists
 
-(handler (req "/js/jquery.js" :get))
-; Will return js file if resources/public/js/jquery.js exists
+(handler (req "/js/script.js" :get))
+; Will return js file if resources/public/js/script.js exists
 
 (handler (req "/" :get))
 ; #stch.response.Response{:status 200, :headers {"Content-Type" "text/html"}, :body "hello world"}
