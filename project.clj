@@ -1,4 +1,4 @@
-(defproject stch-library/routing "0.1.0"
+(defproject stch-library/routing "0.1.1"
   :description "Ring-compatible HTTP routing library."
   :url "https://github.com/stch-library/routing"
   :license {:name "Eclipse Public License"

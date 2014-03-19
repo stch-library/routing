@@ -2,12 +2,12 @@
 
 Ring-compatible HTTP routing library based on ideas from:
 
-1. http://bulletphp.com
-2. http://happstack.com
+1. [Bullet PHP](http://bulletphp.com)
+2. [Happstack](http://happstack.com)
 
 The request path is split into segments, and each segment is matched until either the entire path has been consumed or all segment handlers have been exhausted.  An unconsumed path returns a 404 response, while a fully consumed path with a return value of nil returns a 204 response, "No Content".
 
-A clojure hash-map or sequential collection type (lists, vectors, etc.) returned by a route will automatically be JSON encoded.  The encoding for these types can be changed to EDN, if desired, by wrapping routes with the with-edn-formatting macro.  See the examples section for more.
+Clojure collection types (map, vector, set, list, seq) returned by a route will automatically be JSON encoded.  The encoding for these types can be changed to EDN, if desired, by wrapping handler calls with the with-edn-formatting macro.  See the examples section below for more information.
 
 To return a full response (status, headers, body), it is suggested you use one of the built-in response functions (e.g., ok, not-found).  If you need more control, you can create a Response record.  You cannot return a hash-map with keys: status, headers, and body, since hash-maps are automatically JSON encoded.
 
@@ -18,12 +18,14 @@ To return a full response (status, headers, body), it is suggested you use one o
 Add the following to your project dependencies:
 
 ```clojure
-[stch-library/routing "0.1.0"]
+[stch-library/routing "0.1.1"]
 ```
 
 ## API Documentation
 
 http://stch-library.github.io/routing
+
+Note: This library uses [stch.schema](https://github.com/stch-library/schema). Please refer to that project page for more information regarding type annotations and their meaning.
 
 ## How to use
 
@@ -33,6 +35,8 @@ http://stch-library.github.io/routing
 (def faqs
   {"how-to-post-comment" "How to post a comment"
    "how-to-remove-comment" "How to remove a comment"})
+
+(def old-or-new #{"old-path" "new-path"})
 
 (def posts [{:id 1 :content "Post #1"}
             {:id 2 :content "Post #2"}])
@@ -68,6 +72,8 @@ http://stch-library.github.io/routing
   (path "faq"
     (pred faqs [faq]
       (str "FAQ: " faq)))
+  (pred old-or-new [choice]
+    (str "You chose: " choice))
   (path "admin"
     (path "user"
       (guard false "You shall not pass!"))
@@ -121,6 +127,12 @@ http://stch-library.github.io/routing
 
 (handler (req "/faq/how-to-post-comment" :get))
 ; #stch.response.Response{:status 200, :headers {"Content-Type" "text/html"}, :body "FAQ: How to post a comment"}
+
+(handler (req "/old-path" :get))
+; #stch.response.Response{:status 200, :headers {"Content-Type" "text/html"}, :body "You chose: old-path"}
+
+(handler (req "/new-path" :get))
+; #stch.response.Response{:status 200, :headers {"Content-Type" "text/html"}, :body "You chose: new-path"}
 
 (handler (req "/admin" :get))
 ; #stch.response.Response{:status 200, :headers {"Content-Type" "text/html"}, :body "Welcome to the admin portal!"}
@@ -285,9 +297,10 @@ The following types are handled specially when passed to the respond protocol me
 4. String
 5. APersistentMap
 6. Sequential
-7. IDeref
-8. File
-9. InputStream
+7. IPersistentSet
+8. IDeref
+9. File
+10. InputStream
 
 For all other types (Number, Boolean, etc.), the object is passed to pr-str, and that value is passed to the ok fn.
 
