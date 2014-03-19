@@ -1,10 +1,12 @@
 (ns stch.response
+  "Generate Ring responses."
   (:require [cheshire.core :as json])
   (:use [ring.util.response :only [response]]
         [stch.schema])
   (:import
    [java.io File InputStream]
-   [clojure.lang APersistentMap Sequential IDeref]))
+   [clojure.lang APersistentMap Sequential
+                 IPersistentSet IDeref]))
 
 (defrecord' Response
   [status :- Int
@@ -14,10 +16,13 @@
 (defrecord EmptyResponse [])
 
 (defn' empty-resp? :- Boolean
+  "Is the object an instance of EmptyResponse?"
   [x :- Any]
   (instance? EmptyResponse x))
 
-(def ^:private code->text
+(def code->text
+  "Mapping of HTTP status codes to their default
+  descriptions."
   {100 "Continue"
    101 "Switching Protocols"
    102 "Processing"
@@ -78,69 +83,87 @@
    510 "Not Extended"
    511 "Network Authentication Required"})
 
-(def ^:private ct-text-html
+(def ct-text-html
+  "Header map with Content-Type set to text/html."
   {"Content-Type" "text/html"})
 
-(def ^:private ct-text-plain
+(def ct-text-plain
+  "Header map with Content-Type set to text/plain."
   {"Content-Type" "text/plain"})
 
 (defn' text-response :- Response
+  "Returns a plain text response with the given status
+  code and body text."
   [code :- Int, text :- String]
   (Response. code ct-text-plain text))
 
 (defn' trivial-response :- Response
+  "Returns a plain text response with the given status
+  code and the default description for the status code."
   [code :- Int]
   (Response. code ct-text-plain (code->text code)))
 
 (defn' ok :- Response
+  "Returns a 200 response."
   ([body :- String]
    (Response. 200 ct-text-html body))
   ([content-type :- String, body :- String]
    (Response. 200 {"Content-Type" content-type} body)))
 
 (defn' redirect :- Response
+  "Returns a 302 response."
   [url :- String]
   (Response. 302 {"Location" url} ""))
 
 (defn' bad-request :- Response
+  "Returns a 400 response."
   ([]
    (trivial-response 400))
   ([text :- String]
    (text-response 400 text)))
 
 (defn' forbidden :- Response
+  "Returns a 403 response."
   ([]
    (trivial-response 403))
   ([text :- String]
    (text-response 403 text)))
 
 (defn' not-found :- Response
+  "Returns a 404 response."
   ([]
    (trivial-response 404))
   ([text :- String]
    (text-response 404 text)))
 
 (defn' method-not-allowed :- Response
+  "Returns a 405 response."
   ([]
    (trivial-response 405))
   ([text :- String]
    (text-response 405 text)))
 
-(defn' ->json :- Response [data]
+(defn' ->json :- Response
+  "Returns a JSON encoded response."
+  [data]
   (ok "application/json" (json/encode data)))
 
-(defn' ->edn :- Response [data]
+(defn' ->edn :- Response
+  "Returns an EDN encoded response."
+  [data]
   (ok "application/edn" (pr-str data)))
 
 (def ^:dynamic *coll-formatter* ->json)
 
 (defmacro with-edn-formatting
+  "Format collection responses as EDN."
   [& body]
   `(binding [*coll-formatter* ->edn]
      ~@body))
 
 (defprotocol IResponse
-  (respond [resp]))
+  "Generate type-specific Ring responses."
+  (respond [resp] "Returns a Ring response."))
 
 (extend-protocol IResponse
   EmptyResponse
@@ -154,6 +177,8 @@
   APersistentMap
   (respond [resp] (*coll-formatter* resp))
   Sequential
+  (respond [resp] (*coll-formatter* resp))
+  IPersistentSet
   (respond [resp] (*coll-formatter* resp))
   IDeref
   (respond [ref] (respond (deref ref)))

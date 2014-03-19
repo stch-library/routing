@@ -173,6 +173,7 @@
   `(-zipper *router*))
 
 (defprotocol IRequest
+  "Common request accessors."
   (-request [this]
     "Returns the request map.")
   (-url [this]
@@ -361,34 +362,40 @@
            (atom (->EmptyResponse))))
 
 (defmacro route
+  "Entrypoint for routing. Returns a Ring handler.
+  Calls respond."
   [& body]
-  "Entrypoint for routing. Calls respond."
   `(fn [req#]
      (binding [*router* (init-router req#)]
        ~@body
        (-> *router* :resp deref respond))))
 
 (defmacro defroute
-  "Define a route."
+  "Define a routing Ring handler."
   [name & body]
   `(def ~name (route ~@body)))
 
 (defmacro route'
+  "Alternate entrypoint for routing. Returns a Ring
+  handler. Does not call respond.
+
+  Use with routes."
   [& body]
-  "Alternate entrypoint for routing. Does not call
-  respond. Use with routes."
   `(fn [req#]
      (binding [*router* (init-router req#)]
        ~@body
        (-> *router* :resp deref))))
 
 (defmacro defroute'
-  "Define a route. Uses route'."
+  "Define a routing Ring handler.
+
+  Use with routes."
   [name & body]
   `(def ~name (route' ~@body)))
 
 (defn' routes :- (Fn Any [Request])
-  "Compose multiple routes. Calls respond."
+  "Compose multiple routes. Returns a Ring handler.
+  Calls respond."
   [& handlers :- [(Fn Any [Request])]]
   (fn [req]
     (-> (some (fn [handler]
