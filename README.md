@@ -18,7 +18,7 @@ To return a full response (status, headers, body), it is suggested you use one o
 Add the following to your project dependencies:
 
 ```clojure
-[stch-library/routing "0.1.1"]
+[stch-library/routing "0.1.2"]
 ```
 
 ## API Documentation

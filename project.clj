@@ -1,10 +1,10 @@
-(defproject stch-library/routing "0.1.1"
+(defproject stch-library/routing "0.1.2"
   :description "Ring-compatible HTTP routing library."
   :url "https://github.com/stch-library/routing"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.5.1"]
-                 [stch-library/schema "0.3.2"]
+                 [stch-library/schema "0.3.3"]
                  [ring/ring-core "1.2.2"]
                  [cheshire "5.3.1"]]
   :profiles {:dev {:dependencies [[speclj "3.0.2"]]}}
